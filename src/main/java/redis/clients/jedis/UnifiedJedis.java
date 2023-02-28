@@ -205,6 +205,10 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     return checkAndBroadcastCommand(commandObjects.ping());
   }
 
+  public String flushDB() {
+    return checkAndBroadcastCommand(commandObjects.flushDB());
+  }
+
   public String flushAll() {
     return checkAndBroadcastCommand(commandObjects.flushAll());
   }
@@ -3176,22 +3180,22 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   @Override
   public String functionDelete(String libraryName) {
-    return executeCommand(commandObjects.functionDelete(libraryName));
+    return checkAndBroadcastCommand(commandObjects.functionDelete(libraryName));
   }
 
   @Override
   public String functionFlush() {
-    return executeCommand(commandObjects.functionFlush());
+    return checkAndBroadcastCommand(commandObjects.functionFlush());
   }
 
   @Override
   public String functionFlush(FlushMode mode) {
-    return executeCommand(commandObjects.functionFlush(mode));
+    return checkAndBroadcastCommand(commandObjects.functionFlush(mode));
   }
 
   @Override
   public String functionKill() {
-    return executeCommand(commandObjects.functionKill());
+    return checkAndBroadcastCommand(commandObjects.functionKill());
   }
 
   @Override
@@ -3241,7 +3245,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   @Override
   public String functionDelete(byte[] libraryName) {
-    return executeCommand(commandObjects.functionDelete(libraryName));
+    return checkAndBroadcastCommand(commandObjects.functionDelete(libraryName));
   }
 
   @Override
@@ -3281,12 +3285,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   @Override
   public String functionRestore(byte[] serializedValue) {
-    return executeCommand(commandObjects.functionRestore(serializedValue));
+    return checkAndBroadcastCommand(commandObjects.functionRestore(serializedValue));
   }
 
   @Override
   public String functionRestore(byte[] serializedValue, FunctionRestorePolicy policy) {
-    return executeCommand(commandObjects.functionRestore(serializedValue, policy));
+    return checkAndBroadcastCommand(commandObjects.functionRestore(serializedValue, policy));
   }
 
   @Override
@@ -3435,6 +3439,10 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
     return executeCommand(commandObjects.scriptFlush(sampleKey, flushMode));
   }
 
+  public String scriptKill() {
+    return checkAndBroadcastCommand(commandObjects.scriptKill());
+  }
+
   @Override
   public String scriptKill(String sampleKey) {
     return executeCommand(commandObjects.scriptKill(sampleKey));
@@ -3458,6 +3466,10 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   @Override
   public String scriptKill(byte[] sampleKey) {
     return executeCommand(commandObjects.scriptKill(sampleKey));
+  }
+
+  public String slowlogReset() {
+    return checkAndBroadcastCommand(commandObjects.slowlogReset());
   }
   // Sample key commands
 
@@ -3506,7 +3518,7 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
   // RediSearch commands
   @Override
   public String ftCreate(String indexName, IndexOptions indexOptions, Schema schema) {
-    return executeCommand(commandObjects.ftCreate(indexName, indexOptions, schema));
+    return checkAndBroadcastCommand(commandObjects.ftCreate(indexName, indexOptions, schema));
   }
 
   @Override
@@ -3516,12 +3528,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   @Override
   public String ftAlter(String indexName, Schema schema) {
-    return executeCommand(commandObjects.ftAlter(indexName, schema));
+    return checkAndBroadcastCommand(commandObjects.ftAlter(indexName, schema));
   }
 
   @Override
   public String ftAlter(String indexName, Iterable<SchemaField> schemaFields) {
-    return executeCommand(commandObjects.ftAlter(indexName, schemaFields));
+    return checkAndBroadcastCommand(commandObjects.ftAlter(indexName, schemaFields));
   }
 
   @Override
@@ -3589,12 +3601,12 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   @Override
   public String ftDropIndex(String indexName) {
-    return executeCommand(commandObjects.ftDropIndex(indexName));
+    return checkAndBroadcastCommand(commandObjects.ftDropIndex(indexName));
   }
 
   @Override
   public String ftDropIndexDD(String indexName) {
-    return executeCommand(commandObjects.ftDropIndexDD(indexName));
+    return checkAndBroadcastCommand(commandObjects.ftDropIndexDD(indexName));
   }
 
   @Override
@@ -3659,17 +3671,17 @@ public class UnifiedJedis implements JedisCommands, JedisBinaryCommands,
 
   @Override
   public String ftAliasAdd(String aliasName, String indexName) {
-    return executeCommand(commandObjects.ftAliasAdd(aliasName, indexName));
+    return checkAndBroadcastCommand(commandObjects.ftAliasAdd(aliasName, indexName));
   }
 
   @Override
   public String ftAliasUpdate(String aliasName, String indexName) {
-    return executeCommand(commandObjects.ftAliasUpdate(aliasName, indexName));
+    return checkAndBroadcastCommand(commandObjects.ftAliasUpdate(aliasName, indexName));
   }
 
   @Override
   public String ftAliasDel(String aliasName) {
-    return executeCommand(commandObjects.ftAliasDel(aliasName));
+    return checkAndBroadcastCommand(commandObjects.ftAliasDel(aliasName));
   }
 
   @Override
