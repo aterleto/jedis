@@ -97,6 +97,45 @@ Now you can use the `JedisCluster` instance and send commands like you would wit
 jedis.sadd("planets", "Mars");
 ```
 
+## Failover
+
+Jedis supports failover for standalone and clustered Redis deployments, accessible from a single endpoint. This is useful when:
+1. You have more than one Redis deployment. This might include two independent Redis servers or two or more Redis databases replicated across multiple [active-active Redis Enterprise](https://docs.redis.com/latest/rs/databases/active-active/) clusters.
+2. You want your application to connect to one deployment at a time and to fail over to the next available deployment if the first deployment becomes unavailable.
+
+To configure Jedis for failover, first create an array of `ClusterJedisClientConfig` objects, one for each Redis deployment.
+
+```java
+JedisClientConfig config = DefaultJedisClientConfig.builder().user("cache").password("secret").build();
+
+ClusterJedisClientConfig[] clientConfigs = new ClusterJedisClientConfig[2];
+clientConfigs[0] = new ClusterJedisClientConfig(new HostAndPort("redis-east.example.com", 14000), config);
+clientConfigs[1] = new ClusterJedisClientConfig(new HostAndPort("redis-west.example.com", 14000), config);
+```
+
+The configuration above represents two example Redis deployments: `redis-east.example.com` and `redis-west.example.com`.
+
+You can use these configurations to create and configure a connection provide that supports failover.
+
+```java
+MultiClusterJedisClientConfig.Builder builder = new MultiClusterJedisClientConfig.Builder(clientConfigs);
+builder.circuitBreakerSlidingWindowSize(5);
+builder.circuitBreakerSlidingWindowMinCalls(1);
+
+MultiClusterPooledConnectionProvider provider = new MultiClusterPooledConnectionProvider(builder.build());
+```
+
+Internally, the connection provider uses a [configurable circuit breaker implementation](https://resilience4j.readme.io/docs/circuitbreaker) to determine when to fail over.
+In this case, any 5 successive failures will trigger a failover.
+
+Once you've configured and created a `MultiClusterPooledConnectionProvider`, you can create a `UnifiedJedis` instance for your application:
+
+```java
+UnifiedJedis jedis = new UnifiedJedis(provider);
+```
+
+In this example, 5 successive connection or operation failures against `redis-east.example.com` will trigger a failover to `redis-west.example.com`.
+
 ## Documentation
 
 The [Jedis wiki](http://github.com/redis/jedis/wiki) contains several useful articles for using Jedis.
