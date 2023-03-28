@@ -99,7 +99,7 @@ jedis.sadd("planets", "Mars");
 
 ## Failover
 
-Jedis supports failover for standalone and clustered Redis deployments, accessible from a single endpoint. This is useful when:
+Jedis supports failover for your Redis deployments. This is useful when:
 1. You have more than one Redis deployment. This might include two independent Redis servers or two or more Redis databases replicated across multiple [active-active Redis Enterprise](https://docs.redis.com/latest/rs/databases/active-active/) clusters.
 2. You want your application to connect to one deployment at a time and to fail over to the next available deployment if the first deployment becomes unavailable.
 
