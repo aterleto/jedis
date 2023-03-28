@@ -115,7 +115,7 @@ clientConfigs[1] = new ClusterJedisClientConfig(new HostAndPort("redis-west.exam
 
 The configuration above represents two example Redis deployments: `redis-east.example.com` and `redis-west.example.com`.
 
-You can use these configurations to create and configure a connection provide that supports failover.
+You can use these configurations to create and configure a connection provider that supports failover.
 
 ```java
 MultiClusterJedisClientConfig.Builder builder = new MultiClusterJedisClientConfig.Builder(clientConfigs);
