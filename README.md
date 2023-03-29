@@ -119,22 +119,28 @@ You can use these configurations to create and configure a connection provider t
 
 ```java
 MultiClusterJedisClientConfig.Builder builder = new MultiClusterJedisClientConfig.Builder(clientConfigs);
-builder.circuitBreakerSlidingWindowSize(5);
+builder.circuitBreakerSlidingWindowSize(10);
 builder.circuitBreakerSlidingWindowMinCalls(1);
+builder.circuitBreakerFailureRateThreshold(50.0f);
 
 MultiClusterPooledConnectionProvider provider = new MultiClusterPooledConnectionProvider(builder.build());
 ```
 
 Internally, the connection provider uses a [configurable circuit breaker implementation](https://resilience4j.readme.io/docs/circuitbreaker) to determine when to fail over.
-In this case, any 5 successive failures will trigger a failover.
+In this configuration, we've set a sliding window size of 10 and a failure rate threshold of 50%. This means that a failover will be triggered if 5 out of any 10 calls to Redis fail.
 
-Once you've configured and created a `MultiClusterPooledConnectionProvider`, you can create a `UnifiedJedis` instance for your application:
+Once you've configured and created a `MultiClusterPooledConnectionProvider`, you can build a `UnifiedJedis` instance for your application, passing in the provider:
 
 ```java
 UnifiedJedis jedis = new UnifiedJedis(provider);
 ```
 
-In this example, 5 successive connection or operation failures against `redis-east.example.com` will trigger a failover to `redis-west.example.com`.
+You can now use this `UnifiedJedis` instance, and your application will fail over if necessary.
+In this example, if `redis-east.example.com` becomes unavailable, the application will then connect to and use `redis-west.example.com`.
+If, at a subsequent time, `redis-east.example.com` comes back online, the application will continue to communicate solely with `redis-west.example.com`.
+Only if the application is restarted will it attempt to reconnect to `redis-east.example.com`.
+
+We recommend testing your specific failover scenarios to ensure that this behavior meets your application's requirements.
 
 ## Documentation
 
