@@ -103,7 +103,15 @@ Jedis supports failover for your Redis deployments. This is useful when:
 1. You have more than one Redis deployment. This might include two independent Redis servers or two or more Redis databases replicated across multiple [active-active Redis Enterprise](https://docs.redis.com/latest/rs/databases/active-active/) clusters.
 2. You want your application to connect to one deployment at a time and to fail over to the next available deployment if the first deployment becomes unavailable.
 
-To configure Jedis for failover, first create an array of `ClusterJedisClientConfig` objects, one for each Redis deployment.
+### Configuring failover
+
+To configure Jedis for failover, you specify an ordered list of Redis databases to connect to.
+By default, Jedis will connect to the first Redis database in the list. If the first database becomes unavailable,
+Jedis will attempt to connect to the next database in the list, and so on.
+
+What follows here is a simple configuration example. For more details, see the [complete Jedis failover docs](docs/failover.md).
+
+First create an array of `ClusterJedisClientConfig` objects, one for each Redis database.
 
 ```java
 JedisClientConfig config = DefaultJedisClientConfig.builder().user("cache").password("secret").build();
@@ -113,9 +121,10 @@ clientConfigs[0] = new ClusterJedisClientConfig(new HostAndPort("redis-east.exam
 clientConfigs[1] = new ClusterJedisClientConfig(new HostAndPort("redis-west.example.com", 14000), config);
 ```
 
-The configuration above represents two example Redis deployments: `redis-east.example.com` and `redis-west.example.com`.
+The configuration above represents two example Redis databases: `redis-east.example.com` and `redis-west.example.com`.
+(Note: If you're running Redis Enterprise, it's important that these two databases reside in separate clusters.)
 
-You can use these configurations to create and configure a connection provider that supports failover.
+You can use these configuration objects to create and configure a connection provider that supports failover:
 
 ```java
 MultiClusterJedisClientConfig.Builder builder = new MultiClusterJedisClientConfig.Builder(clientConfigs);
@@ -129,18 +138,17 @@ MultiClusterPooledConnectionProvider provider = new MultiClusterPooledConnection
 Internally, the connection provider uses a [configurable circuit breaker implementation](https://resilience4j.readme.io/docs/circuitbreaker) to determine when to fail over.
 In this configuration, we've set a sliding window size of 10 and a failure rate threshold of 50%. This means that a failover will be triggered if 5 out of any 10 calls to Redis fail.
 
-Once you've configured and created a `MultiClusterPooledConnectionProvider`, you can build a `UnifiedJedis` instance for your application, passing in the provider:
+Once you've configured and created a `MultiClusterPooledConnectionProvider`, instantiate a `UnifiedJedis` instance for your application, passing in the provider you just created:
 
 ```java
 UnifiedJedis jedis = new UnifiedJedis(provider);
 ```
 
-You can now use this `UnifiedJedis` instance, and your application will fail over if necessary.
+When you use this `UnifiedJedis` instance to communicate with Redis, your application will be able to fail over automatically, when necessary.
 In this example, if `redis-east.example.com` becomes unavailable, the application will then connect to and use `redis-west.example.com`.
-If, at a subsequent time, `redis-east.example.com` comes back online, the application will continue to communicate solely with `redis-west.example.com`.
-Only if the application is restarted will it attempt to reconnect to `redis-east.example.com`.
 
 We recommend testing your specific failover scenarios to ensure that this behavior meets your application's requirements.
+For more configuration options and examples, see the complete [Jedis failover docs](docs/failover.md).
 
 ## Documentation
 
