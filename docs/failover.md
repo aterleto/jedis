@@ -74,10 +74,10 @@ UnifiedJedis jedis = new UnifiedJedis(provider);
 Under the hood, Jedis' failover support relies on [resilience4j](https://resilience4j.readme.io/docs/getting-started),
 a fault-tolerance library that implements [retry](https://resilience4j.readme.io/docs/retry) and [circuit breakers](https://resilience4j.readme.io/docs/circuitbreaker).
 
-Once you configure Jedis for failover using the `MultiClusterPooledConnectionProvider`, each call to Redis is decorated with resilience4j retry and circuit breaker.
+Once you configure Jedis for failover using the `MultiClusterPooledConnectionProvider`, each call to Redis is decorated with a resilience4j retry and circuit breaker.
 
 By default, any call that throws a `JedisConnectionException` will be retried up to 3 times.
-If the call continues to fail after the max number of retry attempts, then the circuit breaker will record a failure.
+If the call continues to fail after the maximum number of retry attempts, then the circuit breaker will record a failure.
 The circuit breaker maintains a record of failures in a sliding window data structure.
 If the failure rate reaches a configured threshold (e.g., over 50% of the last 10 calls have failed),
 then the circuit breaker's state transitions from `CLOSED` to `OPEN`.
