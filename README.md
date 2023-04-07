@@ -99,7 +99,7 @@ jedis.sadd("planets", "Mars");
 
 ## Failover
 
-Jedis supports failover for your Redis deployments. This is useful when:
+Jedis supports retry and failover for your Redis deployments. This is useful when:
 1. You have more than one Redis deployment. This might include two independent Redis servers or two or more Redis databases replicated across multiple [active-active Redis Enterprise](https://docs.redis.com/latest/rs/databases/active-active/) clusters.
 2. You want your application to connect to one deployment at a time and to fail over to the next available deployment if the first deployment becomes unavailable.
 
@@ -135,7 +135,7 @@ builder.circuitBreakerFailureRateThreshold(50.0f);
 MultiClusterPooledConnectionProvider provider = new MultiClusterPooledConnectionProvider(builder.build());
 ```
 
-Internally, the connection provider uses a [configurable circuit breaker implementation](https://resilience4j.readme.io/docs/circuitbreaker) to determine when to fail over.
+Internally, the connection provider uses a [configurable circuit breaker and retry implementation](https://resilience4j.readme.io/docs/circuitbreaker) to determine when to fail over.
 In this configuration, we've set a sliding window size of 10 and a failure rate threshold of 50%. This means that a failover will be triggered if 5 out of any 10 calls to Redis fail.
 
 Once you've configured and created a `MultiClusterPooledConnectionProvider`, instantiate a `UnifiedJedis` instance for your application, passing in the provider you just created:

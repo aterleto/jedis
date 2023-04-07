@@ -80,7 +80,7 @@ public final class MultiClusterJedisClientConfig {
     /**  Size of the sliding window which is used to record the outcome of calls when the CircuitBreaker is closed */
     private int circuitBreakerSlidingWindowSize;
 
-    /**  Duration threshold above which calls are considered as slow and increase the rate of slow calls */
+    /**  duration threshold above which calls are considered as slow and increase the rate of slow calls */
     private Duration circuitBreakerSlowCallDurationThreshold;
 
     /**  When the percentage of slow calls is equal or greater the threshold,
