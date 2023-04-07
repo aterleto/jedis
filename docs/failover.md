@@ -1,4 +1,4 @@
-# Jedis Failover
+# Failover with Jedis
 
 Jedis supports failover for your Redis deployments. This is useful when:
 1. You have more than one Redis deployment. This might include two independent Redis servers or two or more Redis databases replicated across multiple [active-active Redis Enterprise](https://docs.redis.com/latest/rs/databases/active-active/) clusters.
@@ -16,7 +16,7 @@ The remainder of this guide describes:
 
 * A basic failover configuration
 * Supported retry and circuit breaker settings
-* Considerations for failing back
+* Failback and the cluster selection API
 
 We recommend that you read this guide carefully and understand the configuration settings before enabling Jedis failover
 in production.
@@ -34,7 +34,7 @@ If `redis-east` becomes unavailable, you want your application to connect to `re
 
 Let's look at one way of configuring Jedis for this scenario.
 
-First create an array of `ClusterJedisClientConfig` objects, one for each Redis database.
+First, create an array of `ClusterJedisClientConfig` objects, one for each Redis database.
 
 ```java
 JedisClientConfig config = DefaultJedisClientConfig.builder().user("cache").password("secret").build();
@@ -69,6 +69,8 @@ Once you've configured and created a `MultiClusterPooledConnectionProvider`, ins
 UnifiedJedis jedis = new UnifiedJedis(provider);
 ```
 
+You can now use this `UnifiedJedis` instance, and the connection management and failover will be handled transparently.
+
 ## Configuration options
 
 Under the hood, Jedis' failover support relies on [resilience4j](https://resilience4j.readme.io/docs/getting-started),
@@ -78,8 +80,9 @@ Once you configure Jedis for failover using the `MultiClusterPooledConnectionPro
 
 By default, any call that throws a `JedisConnectionException` will be retried up to 3 times.
 If the call continues to fail after the maximum number of retry attempts, then the circuit breaker will record a failure.
+
 The circuit breaker maintains a record of failures in a sliding window data structure.
-If the failure rate reaches a configured threshold (e.g., over 50% of the last 10 calls have failed),
+If the failure rate reaches a configured threshold (e.g., when 50% of the last 10 calls have failed),
 then the circuit breaker's state transitions from `CLOSED` to `OPEN`.
 When this occurs, Jedis will attempt to connect to the next Redis database in its client configuration list.
 
@@ -91,13 +94,13 @@ Refer the basic usage above for an example of this.
 
 Jedis uses the following retry settings:
 
-| Setting                          | Default value              | Description                                                                                                                                                                                      |
-|----------------------------------|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Max retry attempts               | 3                          | Maximum number of retry attempts (including the initial call)                                                                                                                                    |
-| Retry wait duration              | 500 ms                     | Number of milliseconds to wait between retry attempts                                                                                                                                            |
-| Wait duration backoff multiplier | 2                          | Exponential backoff factor against wait duration between retries. For example, with a wait duration of 1s and a multiplier of 2, the retries would be done after 1s, 2s, 4s, 8s, 16s, and so on. |
-| Retry included exception list    | `JedisConnectionException` | A list of `Throwable` classes that count as failures and should be retried.                                                                                                                      |
-| Retry ignored exception list     | Empty list                 | A list of `Throwable` classes to explicitly ignore for the purposes of retry.                                                                                                                    |
+| Setting                          | Default value              | Description                                                                                                                                                                                                     |
+|----------------------------------|----------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Max retry attempts               | 3                          | Maximum number of retry attempts (including the initial call)                                                                                                                                                   |
+| Retry wait duration              | 500 ms                     | Number of milliseconds to wait between retry attempts                                                                                                                                                           |
+| Wait duration backoff multiplier | 2                          | Exponential backoff factor multiplied against wait duration between retries. For example, with a wait duration of 1 second and a multiplier of 2, the retries would occur after 1s, 2s, 4s, 8s, 16s, and so on. |
+| Retry included exception list    | `JedisConnectionException` | A list of `Throwable` classes that count as failures and should be retried.                                                                                                                                     |
+| Retry ignored exception list     | Empty list                 | A list of `Throwable` classes to explicitly ignore for the purposes of retry.                                                                                                                                   |
 
 To disable retry, set `maxRetryAttempts` to 1.
 
@@ -105,32 +108,73 @@ To disable retry, set `maxRetryAttempts` to 1.
 
 Jedis uses the following circuit breaker settings:
 
-| Setting                                 | Default value              | Description                                                                                                                                                                                      |
-|-----------------------------------------|----------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Sliding window type                     | `COUNT_BASED`              | The type of sliding window used to record the outcome of calls. Options are `COUNT_BASED` and `TIME_BASED`.                                                                                      |
-| Sliding window size                     | 100                        | The size of the sliding window. Units depend on sliding window type. When `COUNT_BASED`, the size represents number of calls. When `TIME_BASED`, the size represents seconds.                    |
-| Sliding window min calls                | 100                        | Minimum number of calls required (per sliding window period) before the CircuitBreaker can calculate the error rate or slow call rate.                                                           |                                                          | 
-| Wait duration backoff multiplier        | 2                          | Exponential backoff factor against wait duration between retries. For example, with a wait duration of 1s and a multiplier of 2, the retries would be done after 1s, 2s, 4s, 8s, 16s, and so on. |
-| Failure rate threshold                  | `50.0f`                    | Percentage of calls within the sliding window that must fail before the circuit breaker transitions to the `OPEN` state.                                                                         |
-| Slow call duration threshold            | 60000 ms                   | Duration threshold above which calls are considered as slow and increase the rate of slow calls                                                                                                  |                                                                                              |
-| Slow call rate threshold                | `100.0f`                   | Percentage of calls within the sliding window that exceed the slow call duration threshold before circuit breaker transitions to the `OPEN` state.                                               |
-| Circuit breaker included exception list | `JedisConnectionException` | A list of `Throwable` classes that count as failures and add the failure rate.                                                                                                                   |
-| Circuit breaker ignored exception list  | Empty list                 | A list of `Throwable` classes to explicitly ignore for failure rate calcuations.                                                                                                                 |                                                                                                               |
+| Setting                                 | Default value              | Description                                                                                                                                                                   |
+|-----------------------------------------|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Sliding window type                     | `COUNT_BASED`              | The type of sliding window used to record the outcome of calls. Options are `COUNT_BASED` and `TIME_BASED`.                                                                   |
+| Sliding window size                     | 100                        | The size of the sliding window. Units depend on sliding window type. When `COUNT_BASED`, the size represents number of calls. When `TIME_BASED`, the size represents seconds. |
+| Sliding window min calls                | 100                        | Minimum number of calls required (per sliding window period) before the CircuitBreaker will start calculating the error rate or slow call rate.                               |
+| Failure rate threshold                  | `50.0f`                    | Percentage of calls within the sliding window that must fail before the circuit breaker transitions to the `OPEN` state.                                                      |
+| Slow call duration threshold            | 60000 ms                   | Duration threshold above which calls are classified as slow and added to the sliding window.                                                                                  |
+| Slow call rate threshold                | `100.0f`                   | Percentage of calls within the sliding window that exceed the slow call duration threshold before circuit breaker transitions to the `OPEN` state.                            |
+| Circuit breaker included exception list | `JedisConnectionException` | A list of `Throwable` classes that count as failures and add to the failure rate.                                                                                             |
+| Circuit breaker ignored exception list  | Empty list                 | A list of `Throwable` classes to explicitly ignore for failure rate calculations.                                                                                             |                                                                                                               |
 
-## Considerations for failing back
+## Failing back
+
+We believe that failback should not be automatic.
+If Jedis fails over to a new cluster, Jedis will _not_ automatically fail back to the cluster that it was previously connected to.
+This design prevents a scenario in which Jedis fails back to a cluster that may not be entirely healthy yet.
+
+That said, we do provide an API that you can use to implement automated failback when this is appropriate for your application.
+
+## Failback scenario
 
 When a failover is triggered, Jedis will attempt to connect to the next Redis server in the list of server configurations
 you provide at setup.
 
-Recall the `redis-east` and `redis-west` deployments from the basic usage example above.
+For example, recall the `redis-east` and `redis-west` deployments from the basic usage example above.
 Jedis will attempt to connect to `redis-east` first.
 If `redis-east` becomes unavailable (and the circuit breaker transitions), then Jedis will attempt to use `redis-west`.
 
 Now suppose that `redis-east` eventually comes back online.
 You will likely want to fail your application back to `redis-east`.
 However, Jedis will not fail back to `redis-east` automatically.
+
 In this case, we recommend that you first ensure that your `redis-east` deployment is healthy before you fail back your application.
 
-Once you're determined that `redis-east` is healthy, you have two ways to fail back your application.
+### Failback behavior and cluster selection API
 
+Once you've determined that it's safe to fail back to a previously-unavailable cluster,
+you need to decide how to trigger the failback. There two ways to accomplish this:
 
+1. Use the cluster selection API
+2. Restart your application
+
+#### Using the cluster selection API
+
+`MultiClusterPooledConnectionProvider` exposes a method that you can use to manually select which cluster Jedis should use.
+To select a different cluster to use, pass the cluster's numeric index to `setActiveMultiClusterIndex()`.
+
+The cluster's index is a 1-based index derived from its position in the client configuration.
+For example, suppose you configure Jedis with the following client configs:
+
+```
+ClusterJedisClientConfig[] clientConfigs = new ClusterJedisClientConfig[2];
+clientConfigs[0] = new ClusterJedisClientConfig(new HostAndPort("redis-east.example.com", 14000), config);
+clientConfigs[1] = new ClusterJedisClientConfig(new HostAndPort("redis-west.example.com", 14000), config);
+```
+
+In this case, `redis-east` will have an index of `1`, and `redis-west` will have an index of `2`.
+To select and fail back to `redis-east`, you would call the function like so:
+
+```
+provider.setActiveMultiClusterIndex(1);
+```
+
+This method is thread-safe.
+
+#### Restarting the application
+
+If you restart your application, Jedis will attempt to connect to each cluster in the order that the clusters appear
+in your client configuration. Restarting the application is a coarse-grained method of failing back, which isn't always
+appropriate.
