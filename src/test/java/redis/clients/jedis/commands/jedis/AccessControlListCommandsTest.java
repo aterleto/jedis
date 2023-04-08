@@ -2,19 +2,19 @@ package redis.clients.jedis.commands.jedis;
 
 import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.endsWith;
-import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.startsWith;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.Arrays;
 import java.util.List;
+import org.hamcrest.CoreMatchers;
+import org.hamcrest.Matchers;
 import org.junit.After;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -64,8 +64,8 @@ public class AccessControlListCommandsTest extends JedisCommandsTestBase {
 
   @Test
   public void aclListDefault() {
-    assertThat(jedis.aclList().size(), greaterThan(0));
-    assertThat(jedis.aclListBinary().size(), greaterThan(0));
+    assertFalse(jedis.aclList().isEmpty());
+    assertFalse(jedis.aclListBinary().isEmpty());
   }
 
   @Test
@@ -87,7 +87,7 @@ public class AccessControlListCommandsTest extends JedisCommandsTestBase {
   public void aclUsers() {
     List<String> users = jedis.aclUsers();
     assertEquals(2, users.size());
-    assertThat(users, hasItem("default"));
+    assertThat(users, CoreMatchers.hasItem("default"));
 
     assertEquals(2, jedis.aclUsersBinary().size()); // Test binary
   }
@@ -97,7 +97,7 @@ public class AccessControlListCommandsTest extends JedisCommandsTestBase {
     // get default user information
     AccessControlUser userInfo = jedis.aclGetUser("default");
 
-    assertThat(userInfo.getFlags().size(), greaterThanOrEqualTo(1));
+    assertFalse(userInfo.getFlags().isEmpty());
     assertEquals(1, userInfo.getPassword().size());
     assertEquals("+@all", userInfo.getCommands());
     assertEquals("~*", userInfo.getKeys().get(0));
@@ -105,7 +105,7 @@ public class AccessControlListCommandsTest extends JedisCommandsTestBase {
     // create new user
     jedis.aclSetUser(USER_NAME);
     userInfo = jedis.aclGetUser(USER_NAME);
-    assertThat(userInfo.getFlags().size(), greaterThanOrEqualTo(1));
+    assertFalse(userInfo.getFlags().isEmpty());
     assertEquals("off", userInfo.getFlags().get(0));
     assertTrue(userInfo.getPassword().isEmpty());
     assertTrue(userInfo.getKeys().isEmpty());
@@ -285,11 +285,14 @@ public class AccessControlListCommandsTest extends JedisCommandsTestBase {
     jedis2.close();
     jedis2.auth(USER_NAME, USER_PASSWORD);
 
+    final List<String> nopermKeys = Arrays.asList("NOPERM No permissions to access a key",
+        "NOPERM this user has no permissions to access one of the keys used as arguments");
+
     try {
       jedis2.set("foo", "bar");
       fail("Should throw a NOPERM exception");
     } catch (JedisAccessControlException e) {
-      assertEquals("NOPERM No permissions to access a key", e.getMessage());
+      assertThat(e.getMessage(), Matchers.isIn(nopermKeys));
     }
 
     // allow user to access a subset of the key
@@ -304,7 +307,7 @@ public class AccessControlListCommandsTest extends JedisCommandsTestBase {
       jedis2.set("zap:3", "c");
       fail("Should throw a NOPERM exception");
     } catch (JedisAccessControlException e) {
-      assertEquals("NOPERM No permissions to access a key", e.getMessage());
+      assertThat(e.getMessage(), Matchers.isIn(nopermKeys));
     }
   }
 
